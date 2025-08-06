@@ -130,15 +130,19 @@ def plot_overlay(ds_roars, ds_nexrad, output_file):
     im3 = ax3.imshow(nexrad_ref, extent=[-extent, extent, -extent, extent], 
                      vmin=-20, vmax=60, cmap='NWSRef', origin='lower')
     
-    # ROARS contours in deepskyblue for contrast
+    # ROARS LP data overlay (20-60 dBZ range)
     lp_valid = ~np.isnan(z_lp)
     lp_max = z_lp[lp_valid].max() if np.any(lp_valid) else -999
     print(f"    LP max: {lp_max:.1f} dBZ")
     
+    # Mask ROARS data to show only 20-60 dBZ range
+    z_lp_masked = np.where((z_lp >= 20) & (z_lp <= 60), z_lp, np.nan)
+    
     if lp_max > 20:
-        contours = ax3.contour(x_lp, y_lp, z_lp, levels=[20, 30, 40, 50],
-                              colors='deepskyblue', linewidths=2, alpha=1.0)
-        print(f"    Drew LP contours")
+        # Overlay ROARS LP data with transparency
+        im_roars = ax3.pcolormesh(x_lp, y_lp, z_lp_masked, vmin=20, vmax=60, 
+                                 cmap='Blues', shading='nearest')
+        print(f"    Drew LP overlay (20-60 dBZ)")
     
     ax3.set_xlim(-extent, extent)
     ax3.set_ylim(-extent, extent)
@@ -147,11 +151,11 @@ def plot_overlay(ds_roars, ds_nexrad, output_file):
     ax3.set_title('NEXRAD + ROARS LP Overlay')
     ax3.set_xlabel('Distance (km)')
     ax3.set_ylabel('Distance (km)')
-    plt.colorbar(im3, ax=ax3, shrink=0.75, label='NEXRAD dBZ')
+    plt.colorbar(im3, ax=ax3, shrink=0.75,label='dBZ')
     
     # Add legend to overlay plot
-    from matplotlib.lines import Line2D
-    ax3.legend([Line2D([0], [0], color='deepskyblue', lw=2)], ['ROARS LP'], loc='upper right')
+    from matplotlib.patches import Patch
+    ax3.legend([Patch(facecolor='blue', alpha=0.6)], ['ROARS LP (20-60 dBZ)'], loc='upper right')
     
     # Overall title
     fig.suptitle(f'NEXRAD: {nexrad_dt.strftime("%Y%m%d %H%M%S")}Z \n ROARS: {dt.strftime("%Y%m%d %H%M%S")}Z', fontsize=14, fontweight='bold')
