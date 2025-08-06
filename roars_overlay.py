@@ -22,7 +22,7 @@ matplotlib.rcParams['ytick.labelsize'] = 12
 matplotlib.rcParams['savefig.transparent'] = False
 
 vmin, vmax = -20, 60
-cmap = 'jet'
+cmap = 'NWSRef'
 
 def parse_roars_time(filename):
     """Extract datetime from ROARS filename"""
@@ -96,6 +96,11 @@ def plot_overlay(ds_roars, ds_nexrad, output_file):
     x_lp, y_lp, z_lp = polar_to_cartesian(lp_ranges, azimuths, lp_ref)
 
     extent = 120  # ±120 km for 240x240 km view
+    
+    # Extract azimuth and elevation for titles
+    azimuth = ds_roars['azimuth_deg'].values[0]
+    elevation = ds_roars['elevation_deg'].values[0]
+    nexrad_elevation = ds_nexrad['HGT'].values[0]
 
     # Create three subplots
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
@@ -106,20 +111,20 @@ def plot_overlay(ds_roars, ds_nexrad, output_file):
     ax1.set_ylim(-extent, extent)
     ax1.set_aspect('equal')
     ax1.grid(ls='--', alpha=0.3)
-    ax1.set_title('ROARS LP Reflectivity')
+    ax1.set_title(f'ROARS LP Reflectivity\naz: {azimuth:.1f}°, el: {elevation:.1f}°')
     ax1.set_xlabel('Distance (km)')
     ax1.set_ylabel('Distance (km)')
-    plt.colorbar(im1, ax=ax1, label='dBZ')
+    plt.colorbar(im1, ax=ax1, shrink=0.75, label='dBZ')
     
     # Plot 2: NEXRAD only
     im2 = ax2.imshow(nexrad_ref, extent=[-extent, extent, -extent, extent], 
                      vmin=-20, vmax=60, cmap='NWSRef', origin='lower')
     ax2.set_aspect('equal')
     ax2.grid(ls='--', alpha=0.3)
-    ax2.set_title('NEXRAD Reflectivity')
+    ax2.set_title(f'NEXRAD Reflectivity\nCAPPI {nexrad_elevation:.1f} km')
     ax2.set_xlabel('Distance (km)')
     ax2.set_ylabel('Distance (km)')
-    plt.colorbar(im2, ax=ax2, label='dBZ')
+    plt.colorbar(im2, ax=ax2, shrink=0.75, label='dBZ')
     
     # Plot 3: Overlay
     im3 = ax3.imshow(nexrad_ref, extent=[-extent, extent, -extent, extent], 
@@ -133,7 +138,6 @@ def plot_overlay(ds_roars, ds_nexrad, output_file):
     if lp_max > 20:
         contours = ax3.contour(x_lp, y_lp, z_lp, levels=[20, 30, 40, 50],
                               colors='deepskyblue', linewidths=2, alpha=1.0)
-        ax3.clabel(contours, inline=True, fontsize=8, fmt='%d dBZ', colors='deepskyblue')
         print(f"    Drew LP contours")
     
     ax3.set_xlim(-extent, extent)
@@ -143,15 +147,14 @@ def plot_overlay(ds_roars, ds_nexrad, output_file):
     ax3.set_title('NEXRAD + ROARS LP Overlay')
     ax3.set_xlabel('Distance (km)')
     ax3.set_ylabel('Distance (km)')
-    plt.colorbar(im3, ax=ax3, label='NEXRAD dBZ')
+    plt.colorbar(im3, ax=ax3, shrink=0.75, label='NEXRAD dBZ')
     
     # Add legend to overlay plot
     from matplotlib.lines import Line2D
     ax3.legend([Line2D([0], [0], color='deepskyblue', lw=2)], ['ROARS LP'], loc='upper right')
     
     # Overall title
-    fig.suptitle(f'NEXRAD: {nexrad_dt.strftime("%Y%m%d %H%M%S")}Z | '
-                f'ROARS: {dt.strftime("%Y%m%d %H%M%S")}Z', fontsize=14, fontweight='bold')
+    fig.suptitle(f'NEXRAD: {nexrad_dt.strftime("%Y%m%d %H%M%S")}Z \n ROARS: {dt.strftime("%Y%m%d %H%M%S")}Z', fontsize=14, fontweight='bold')
     
     plt.tight_layout()
     plt.savefig(output_file, dpi=150, bbox_inches='tight')
@@ -163,9 +166,9 @@ def process_overlay_files(max_files=None):
     print("=========================")
     
     # Find files
-    roars_files = sorted(glob.glob('/Users/oomitusa/Documents/Research/ROARS/roars/20250731/ROARS_Level2*.nc'))
-    nexrad_files = sorted(glob.glob('/Users/oomitusa/Documents/Research/ROARS/nexrad_cappi/20250731/KHTX/*.nc'))
-    
+    roars_files = sorted(glob.glob('/Volumes/My Book/ROARS/roars/20250731/ROARS_Level2*.nc'))
+    nexrad_files = sorted(glob.glob('/Volumes/My Book/ROARS/nexrad_cappi/20250731/KHTX/*.nc'))
+
     if max_files:
         roars_files = roars_files[:max_files]
         print(f"Limited to first {max_files} files for testing")
@@ -236,7 +239,7 @@ def create_animation(output_dir):
     animation_file = os.path.join(output_dir, 'overlay_animation.mp4')
     cmd = [
         'ffmpeg', '-y',
-        '-framerate', '2',
+        '-framerate', '5',
         '-pattern_type', 'glob', 
         '-i', os.path.join(output_dir, 'overlay_*.png'),
         '-c:v', 'libx264',
